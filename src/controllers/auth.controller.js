@@ -13,7 +13,7 @@ export const signUp = async (req, res, next) => {
     const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
-      res
+      return res
         .status(400)
         .json({ success: false, error: "Please fill all required fields" });
     }
@@ -22,7 +22,9 @@ export const signUp = async (req, res, next) => {
     const userExists = await User.findOne({ email }, "-password");
 
     if (userExists) {
-      res.status(409).json({ success: false, error: "User already exists" });
+      return res
+        .status(409)
+        .json({ success: false, error: "User already exists" });
     }
 
     // Hash the plain text password securely
@@ -66,7 +68,7 @@ export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
-      res
+      return res
         .status(400)
         .json({ success: false, error: "Please fill all required fields" });
     }
@@ -76,7 +78,7 @@ export const login = async (req, res, next) => {
 
     // User doesn't exist - stop.
     if (!userExists) {
-      res.status(404).json({
+      return res.status(404).json({
         success: false,
         error: "User doesn't exist.",
       });
@@ -90,7 +92,9 @@ export const login = async (req, res, next) => {
 
     // Password doesn't match
     if (!isPasswordValid) {
-      res.status(401).json({ success: false, error: "Passwords do not match" });
+      return res
+        .status(401)
+        .json({ success: false, error: "Passwords do not match" });
     }
 
     // Password is valid - create token
@@ -112,7 +116,7 @@ export const login = async (req, res, next) => {
 
 export const logout = async (req, res, next) => {
   try {
-    res.cookie(JWT_NAME, COOKIE_CONFIG);
+    res.cookie(JWT_NAME, "", COOKIE_CONFIG);
 
     res.status(200).json({ success: true, message: "Logout successfully" });
   } catch (error) {
