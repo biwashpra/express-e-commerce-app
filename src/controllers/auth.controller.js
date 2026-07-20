@@ -2,6 +2,8 @@ import mongoose from "mongoose";
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import generateToken from "../utils/generateToken.js";
+import { JWT_NAME } from "../config/env.js";
+import { COOKIE_CONFIG } from "../constants/cookie.js";
 
 export const signUp = async (req, res, next) => {
   const session = await mongoose.startSession();
@@ -103,6 +105,16 @@ export const login = async (req, res, next) => {
       data: cleanUser,
       message: "Login successfully",
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const logout = async (req, res, next) => {
+  try {
+    res.cookie(JWT_NAME, COOKIE_CONFIG);
+
+    res.status(200).json({ success: true, message: "Logout successfully" });
   } catch (error) {
     next(error);
   }
