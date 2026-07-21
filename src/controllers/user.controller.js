@@ -80,3 +80,41 @@ export const getUserById = async (req, res) => {
 
   res.success({ data: user, message: "User data reterived successfully." });
 };
+
+export const updateUserById = async (req, res) => {
+  const { id } = req.params;
+
+  const { name, email, isAdmin } = req.body;
+
+  const updatedFields = {};
+  if (name !== undefined) updatedFields.name = name;
+  if (email !== undefined) updatedFields.email = email;
+  if (isAdmin !== undefined) updatedFields.isAdmin = isAdmin;
+
+  // Guard clause if body was empty or filled with junk keys
+  if (Object.keys(updatedFields).length === 0) {
+    throw new AppError(
+      400,
+      "INVALID_UPDATE_DATA",
+      "No valid user update data provided.",
+    );
+  }
+
+  const updatedUser = await User.findByIdAndUpdate(
+    id,
+    { $set: updatedFields },
+    {
+      new: true,
+      runValidators: true,
+    },
+  );
+
+  if (!updatedUser) {
+    throw new AppError(404, "USER_NOT_FOUND", "User account not found.");
+  }
+
+  res.success({
+    message: "User data updated successfully",
+    data: updatedUser,
+  });
+};
