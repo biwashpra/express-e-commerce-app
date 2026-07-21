@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import generateToken from "../utils/generateToken.js";
 import { JWT_NAME } from "../config/env.js";
 import { COOKIE_CONFIG } from "../constants/cookie.js";
+import AppError from "../utils/AppError.js";
 
 export const signUp = async (req, res, next) => {
   const session = await mongoose.startSession();
@@ -13,18 +14,22 @@ export const signUp = async (req, res, next) => {
     const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Please fill all required fields" });
+      throw new AppError(
+        400,
+        "MISSING_REQUIRED_FIELDS",
+        "Please fill all required fields.",
+      );
     }
 
     // Check if user already exists
     const userExists = await User.findOne({ email }, "-password");
 
     if (userExists) {
-      return res
-        .status(409)
-        .json({ success: false, error: "User already exists" });
+      throw new AppError(
+        409,
+        "EMAIL_ALREADY_EXISTS",
+        "An account with this email already exists.",
+      );
     }
 
     // Hash the plain text password securely
@@ -52,8 +57,8 @@ export const signUp = async (req, res, next) => {
       },
     });
 
-    res.status(201).json({
-      success: true,
+    return res.success({
+      statusCode: 201,
       data: cleanUser,
       message: "User created successfully",
     });
@@ -64,62 +69,55 @@ export const signUp = async (req, res, next) => {
   }
 };
 
-export const login = async (req, res, next) => {
-  try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Please fill all required fields" });
-    }
-
-    // Check user exists or not
-    const userExists = await User.findOne({ email }, "+password");
-
-    // User doesn't exist - stop.
-    if (!userExists) {
-      return res.status(404).json({
-        success: false,
-        error: "User doesn't exist.",
-      });
-    }
-
-    // User exists then compare the password
-    const isPasswordValid = await bcrypt.compare(
-      String(password),
-      userExists.password,
+export const login = async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    throw new AppError(
+      400,
+      "MISSING_REQUIRED_FIELDS",
+      "Please fill all required fields.",
     );
-
-    // Password doesn't match
-    if (!isPasswordValid) {
-      return res
-        .status(401)
-        .json({ success: false, error: "Passwords do not match" });
-    }
-
-    // Password is valid - create token
-    generateToken(res, userExists._id);
-
-    const cleanUser = userExists.toObject();
-    delete cleanUser.password;
-    delete cleanUser.__v;
-
-    res.status(201).json({
-      success: true,
-      data: cleanUser,
-      message: "Login successfully",
-    });
-  } catch (error) {
-    next(error);
   }
+
+  // Check user exists or not
+  const userExists = await User.findOne({ email }, "+password");
+
+  // User doesn't exist - stop.
+  if (!userExists) {
+    throw new AppError(404, "USER_NOT_FOUND", "User account not found.");
+  }
+
+  // User exists then compare the password
+  const isPasswordValid = await bcrypt.compare(
+    String(password),
+    userExists.password,
+  );
+
+  // Password doesn't match
+  if (!isPasswordValid) {
+    throw new AppError(
+      400,
+      "INVALID_CREDENTIALS",
+      "Invalid email or password.",
+    );
+  }
+
+  // Password is valid - create token
+  generateToken(res, userExists._id);
+
+  const cleanUser = userExists.toObject();
+  delete cleanUser.password;
+  delete cleanUser.__v;
+
+  return res.success({
+    statusCode: 201,
+    data: cleanUser,
+    message: "Login successfully",
+  });
 };
 
-export const logout = async (req, res, next) => {
-  try {
-    res.cookie(JWT_NAME, "", COOKIE_CONFIG);
+export const logout = async (req, res) => {
+  res.cookie(JWT_NAME, "", COOKIE_CONFIG);
 
-    res.status(200).json({ success: true, message: "Logout successfully" });
-  } catch (error) {
-    next(error);
-  }
+  res.success({ message: "Logout successfully" });
 };

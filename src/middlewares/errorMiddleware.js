@@ -1,38 +1,47 @@
+// Even if you never use next, Express requires all four parameters to recognize it as an error-handling middleware. This is a long-standing Express convention (and still applies in Express 5).
+// eslint-disable-next-line no-unused-vars
 const errorMiddleware = (err, req, res, next) => {
-  try {
-    let error = { ...err };
+  console.error("error", err);
 
-    error.message = err.message;
+  let statusCode = err.statusCode || 500;
+  let code = err.code || "INTERNAL_SERVER_ERROR";
+  let message = err.message || "Internal Server Error";
+  let details = err.details || null;
 
-    console.error(err);
-
-    // Mongoose bad ObjectId
-    if (err.name === "CastError") {
-      const message = "Resource not found";
-      error = new Error(message);
-      error.statusCode = 404;
-    }
-
-    // Mongoose duplicate key
-    if (err.code === 11000) {
-      const message = "Duplicate field value entered";
-      error = new Error(message);
-      error.statusCode = 400;
-    }
-
-    // Mongoose validation error
-    if (err.name === "ValidationError") {
-      const message = Object.values(err.errors).map((val) => val.message);
-      error = new Error(message.join(", "));
-      error.statusCode = 400;
-    }
-
-    res
-      .status(error.statusCode || 500)
-      .json({ success: false, error: error.message || "Server Error" });
-  } catch (error) {
-    next(error);
+  // Invalid Mongo ObjectId
+  if (err.name === "CastError") {
+    statusCode = 404;
+    code = "RESOURCE_NOT_FOUND";
+    message = "Resource not found.";
   }
+
+  // Duplicate Key
+  if (err.code === 11000) {
+    statusCode = 409;
+    code = "DUPLICATE_RESOURCE";
+    message = "Duplicate field value entered.";
+  }
+
+  // Validation Error
+  if (err.name === "ValidationError") {
+    statusCode = 400;
+    code = "VALIDATION_ERROR";
+    message = "Validation failed.";
+
+    details = Object.values(err.errors).map((error) => ({
+      field: error.path,
+      message: error.message,
+    }));
+  }
+
+  return res.status(statusCode).json({
+    success: false,
+    error: {
+      code,
+      message,
+      ...(details && { details }),
+    },
+  });
 };
 
 export default errorMiddleware;

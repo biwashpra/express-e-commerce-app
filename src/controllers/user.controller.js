@@ -1,109 +1,82 @@
 import User from "../models/user.model.js";
+import AppError from "../utils/AppError.js";
 
-export const getAllUsers = async (req, res, next) => {
-  try {
-    const users = await User.find();
-
-    res.status(200).json({ success: true, data: users ?? [] });
-  } catch (error) {
-    next(error);
-  }
+export const getAllUsers = async (req, res) => {
+  const users = await User.find();
+  res.success({ data: users ?? [], message: "Users retrived successfully" });
 };
 
-export const getUserProfile = async (req, res, next) => {
-  try {
-    const user = await User.findById(req.user._id);
+export const getUserProfile = async (req, res) => {
+  const user = await User.findById(req.user._id);
 
-    if (!user) {
-      return res.status(404).json({ success: false, error: "User not found." });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: user,
-    });
-  } catch (error) {
-    next(error);
+  if (!user) {
+    throw new AppError(404, "USER_NOT_FOUND", "User account not found.");
   }
+
+  res.success({
+    data: user,
+    message: "User profile retrived successfully.",
+  });
 };
 
-export const updateUserProfile = async (req, res, next) => {
-  try {
-    const id = req.user._id;
-    const { name, email } = req.body;
+export const updateUserProfile = async (req, res) => {
+  const id = req.user._id;
+  const { name, email } = req.body;
 
-    const updateFields = {};
-    if (name !== undefined) updateFields.name = name;
-    if (email !== undefined) updateFields.email = email;
+  const updateFields = {};
+  if (name !== undefined) updateFields.name = name;
+  if (email !== undefined) updateFields.email = email;
 
-    // Guard clause if body was empty or filled with junk keys
-    if (Object.keys(updateFields).length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "No valid profile update data provided.",
-      });
-    }
-
-    const updatedUser = await User.findByIdAndUpdate(
-      id,
-      { $set: updateFields },
-      {
-        new: true, // Returns the modified document rather than the old one
-        runValidators: true, // Forces Mongoose schema validators to run on the update
-      },
+  // Guard clause if body was empty or filled with junk keys
+  if (Object.keys(updateFields).length === 0) {
+    throw new AppError(
+      400,
+      "INVALID_UPDATE_DATA",
+      "No valid profile update data provided.",
     );
-
-    if (!updatedUser) {
-      return res.status(404).json({
-        success: false,
-        message: "User account not found.",
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: "Profile updated successfully.",
-      data: updatedUser,
-    });
-  } catch (error) {
-    next(error);
   }
+
+  const updatedUser = await User.findByIdAndUpdate(
+    id,
+    { $set: updateFields },
+    {
+      new: true, // Returns the modified document rather than the old one
+      runValidators: true, // Forces Mongoose schema validators to run on the update
+    },
+  );
+
+  if (!updatedUser) {
+    throw new AppError(404, "USER_NOT_FOUND", "User account not found.");
+  }
+
+  return res.success({
+    message: "Profile updated successfully.",
+    data: updatedUser,
+  });
 };
 
-export const deleteUserById = async (req, res, next) => {
-  try {
-    const { id } = req.params;
+export const deleteUserById = async (req, res) => {
+  const { id } = req.params;
 
-    const deletedUser = await User.findByIdAndDelete(id);
+  const deletedUser = await User.findByIdAndDelete(id);
 
-    // Handle user doesnot exists.
-    if (!deletedUser) {
-      return res.status(404).json({
-        success: false,
-        message: "User account not found. Nothing was deleted.",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: `User account associated with ${deletedUser.email} has been permanently deleted.`,
-    });
-  } catch (error) {
-    next(error);
+  // Handle user doesnot exists.
+  if (!deletedUser) {
+    throw new AppError(404, "USER_NOT_FOUND", "User account not found.");
   }
+
+  res.success({
+    message: `User account associated with ${deletedUser.email} has been permanently deleted.`,
+  });
 };
 
-export const getUserById = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const user = await User.findById(id);
+export const getUserById = async (req, res) => {
+  const { id } = req.params;
+  const user = await User.findById(id);
 
-    if (!user) {
-      return res.status(404).json({ success: false, error: "User not found" });
-    }
-
-    res.status(200).json({ success: true, data: user });
-  } catch (error) {
-    next(error);
+  if (!user) {
+    throw new AppError(404, "USER_NOT_FOUND", "User account not found.");
   }
+
+  res.success({ data: user, message: "User data reterived successfully." });
 };
